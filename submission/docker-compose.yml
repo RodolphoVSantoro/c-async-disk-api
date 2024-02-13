@@ -2,7 +2,7 @@ version: "3.8"
 
 services:
   api1: &app1
-    command: "./resetDb; ./rinha-backend-2024 3000"
+    command: "./rinha-backend-2024 3000"
     image: rodolphovs/rinha-c-2024-q1:latest
     hostname: api1
     network_mode: host
