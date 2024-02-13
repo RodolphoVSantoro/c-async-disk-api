@@ -4,12 +4,12 @@
 // Header file for the database files
 // Saves and reads user data to and from binary files
 
+#include <fcntl.h>
+#include <sys/file.h>
 #include <time.h>
+#include <unistd.h>
 
 #include "helpers.h"
-
-// Comment out to reset the database on every server startup
-#define RESET_DB 1
 
 // Open file modes
 #define READ_BINARY "rb"
@@ -100,7 +100,13 @@ int writeUser(User* user) {
     sprintf(fname, userFileTemplate, user->id);
     FILE* fpTotals = fopen(fname, WRITE_BINARY);
     errIfNull(fpTotals);
+    int fpTotalsFileDescriptor = fileno(fpTotals);
+    int lockResult = flock(fpTotalsFileDescriptor, LOCK_EX);
+    raiseIfError(lockResult);
     fwrite(user, sizeof(User), 1, fpTotals);
+    fflush(fpTotals);
+    int release = flock(fpTotalsFileDescriptor, LOCK_UN);
+    raiseIfError(release);
     fclose(fpTotals);
     return SUCCESS;
 }
@@ -110,7 +116,13 @@ int readUser(User* user, int id) {
     sprintf(fname, userFileTemplate, id);
     FILE* fpTotals = fopen(fname, READ_BINARY);
     errIfNull(fpTotals);
-    fread(user, sizeof(User), 1, fpTotals);
+    int fpTotalsFileDescriptor = fileno(fpTotals);
+    int lockResult = flock(fpTotalsFileDescriptor, LOCK_SH);
+    raiseIfError(lockResult);
+    int readResult = fread(user, sizeof(User), 1, fpTotals);
+    raiseIfError(readResult);
+    int release = flock(fpTotalsFileDescriptor, LOCK_UN);
+    raiseIfError(release);
     fclose(fpTotals);
     return SUCCESS;
 }
@@ -119,9 +131,16 @@ int updateUserWithTransaction(int id, Transaction* transaction, User* user) {
     char fname[FILE_NAME_SIZE];
     sprintf(fname, userFileTemplate, id);
 
+    if ((access(fname, F_OK) != 0)) {
+        return ERROR;
+    }
     FILE* fpTotals = fopen(fname, READ_WRITE_BINARY);
     raiseIfFileNotFound(fpTotals);
-    fread(user, sizeof(User), 1, fpTotals);
+    int fpTotalsFileDescriptor = fileno(fpTotals);
+    int lockResult = flock(fpTotalsFileDescriptor, LOCK_EX);
+    raiseIfError(lockResult);
+    int readResult = fread(user, sizeof(User), 1, fpTotals);
+    raiseIfError(readResult);
 
     int transactionResult = addTransaction(user, transaction);
 
@@ -130,6 +149,9 @@ int updateUserWithTransaction(int id, Transaction* transaction, User* user) {
         fseek(fpTotals, 0, SEEK_SET);
         fwrite(user, sizeof(User), 1, fpTotals);
     }
+    fflush(fpTotals);
+    int release = flock(fpTotalsFileDescriptor, LOCK_UN);
+    raiseIfError(release);
     fclose(fpTotals);
     return transactionResult;
 }
