@@ -8,8 +8,11 @@ WORKDIR /app
 
 RUN make release
 
+RUN make compResetDb
+
 FROM ubuntu:23.10 as final
 
 COPY --from=builder /app/rinha-backend-2024 /app/rinha-backend-2024
+COPY --from=builder /app/resetDb /app/resetDb
 
 WORKDIR /app
