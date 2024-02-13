@@ -17,7 +17,6 @@
 <img src="https://s3.amazonaws.com/codenewbie-assets/blogs/binarydropping.gif" alt="logo postgres" width="300" height="auto">
 
 ---
-
 ### Descrição
 
 Esse projeto foi feito pensando em comparar como uma aplicação simples em C com arquivos binários e locks como **"banco de dados"**, sem uso de nenhuma lib externa ou algum banco, se comportaria em relação as outras submissões.
@@ -28,6 +27,13 @@ Mas por favor, nunca usem o código fonte nesse repositório para se basearem em
 
 ---
 
+### Preview testes
+
+<img src="https://i.imgur.com/QARPqZu.png" alt="preview1" width="auto" height="auto">
+<img src="https://i.imgur.com/wlZj7Ft.png" alt="preview2" width="auto" height="auto">
+<img src="https://i.imgur.com/9EAG9iF.png" alt="preview3" width="auto" height="auto">
+
+---
 ### Links
 
 - [RodolphoVSantoro](https://github.com/RodolphoVSantoro) (@github)
