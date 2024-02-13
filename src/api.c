@@ -1,9 +1,6 @@
 #include "httpHandler.h"
 
 int main(int argc, char* argv[]) {
-#ifdef RESET_DB
-    initDb();
-#endif
     if (argc < 2) {
         printf("Usage: %s <port>\n", argv[0]);
         return ERROR;
