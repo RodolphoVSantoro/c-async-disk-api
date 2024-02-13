@@ -24,7 +24,7 @@ const int userInitialLimits[] = {100000, 80000, 1000000, 10000000, 500000};
 const int numberInitialUsers = sizeof(userInitialLimits) / sizeof(int);
 
 // move right on a circular array
-#define moveRight(index) (index = (index + 1) % MAX_TRANSACTIONS)
+#define moveRightInTransactions(index) (index = (index + 1) % MAX_TRANSACTIONS)
 
 // User struct constants
 #define MAX_TRANSACTIONS 10
@@ -63,11 +63,14 @@ int writeUser(User* user);
 // updates the user with the transaction
 // writes the updated user to the user variable
 // returns SUCCESS if transaction was successful
-// returns ERROR if the user has no limit
+// returns ERROR if it fails to lock the file
 // returns FILE_NOT_FOUND if the user is not found
+// returns LIMIT_EXCEEDED_ERROR if the user has no limit
+// returns INVALID_TIPO_ERROR if the tipo is not valid
 int updateUserWithTransaction(int id, Transaction* transaction, User* user);
 
-// Returns ERROR if the user has no limit
+// Returns INVALID_TIPO_ERROR if the tipo is not valid
+// Returns LIMIT_EXCEEDED_ERROR if the user has no limit
 // Returns SUCCESS if the transaction was successful
 int addTransaction(User* user, Transaction* transaction);
 // Tries to add or subtract the transaction value from the user's total
@@ -158,10 +161,12 @@ int updateUserWithTransaction(int id, Transaction* transaction, User* user) {
 
 int addTransaction(User* user, Transaction* transaction) {
     int resultSaldo = addSaldo(user, transaction);
-    raiseIfError(resultSaldo);
+    if (resultSaldo != SUCCESS) {
+        return resultSaldo;
+    }
     if (user->nTransactions == 10) {
         user->transactions[user->oldestTransaction] = *transaction;
-        moveRight(user->oldestTransaction);
+        moveRightInTransactions(user->oldestTransaction);
         return SUCCESS;
     }
 
@@ -174,21 +179,26 @@ int addSaldo(User* user, Transaction* transaction) {
     if (transaction->tipo == 'd') {
         int newTotal = user->total - transaction->valor;
         if (-1 * newTotal > user->limit) {
-            return ERROR;
+            return LIMIT_EXCEEDED_ERROR;
         }
         user->total = newTotal;
         return SUCCESS;
+    } else if (transaction->tipo == 'c') {
+        user->total += transaction->valor;
+        return SUCCESS;
     }
-
-    user->total += transaction->valor;
-    return SUCCESS;
+    return INVALID_TIPO_ERROR;
 }
 
 void getOrderedTransactions(User* user, Transaction* orderedTransactions) {
+    if (user->nTransactions == 0) {
+        return;
+    }
     int i = user->oldestTransaction;
+    i = (i - 1 + user->nTransactions) % user->nTransactions;
     for (int j = 0; j < user->nTransactions; j++) {
         orderedTransactions[j] = user->transactions[i];
-        moveRight(i);
+        i = (i - 1 + user->nTransactions) % user->nTransactions;
     }
 }
 

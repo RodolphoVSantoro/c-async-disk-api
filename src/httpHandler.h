@@ -23,7 +23,7 @@
 
 // Debug flags
 // Comment out to enable logging
-#define LOGGING 1
+// #define LOGGING 1
 
 // socket send default flag
 #define SEND_DEFAULT 0
@@ -96,7 +96,10 @@ int handleRequest(char* request, int requestSize, int clientSocket) {
 
     // "GET" alone has 3 bytes, so we need at least 4 bytes to consume a request
     if (requestSize < 4) {
-        return BAD_REQUEST(clientSocket);
+#ifdef LOGGING
+        printf("[ Unprocessable Entity ]\n");
+#endif
+        return UNPROCESSABLE_ENTITY(clientSocket);
     }
 
     bool isGet = partialEqual(request, GET_METHOD, GET_METHOD_LENGTH);
@@ -109,6 +112,9 @@ int handleRequest(char* request, int requestSize, int clientSocket) {
         return handlePostRequest(clientSocket, request, requestSize);
     }
 
+#ifdef LOGGING
+    printf("[ Method not allowed ]\n");
+#endif
     return METHOD_NOT_ALLOWED(clientSocket);
 }
 
@@ -116,6 +122,9 @@ int handleGetRequest(int clientSocket, char* request, int requestSize) {
     // get id from request path
     int id = getIdFromGETRequest(request, requestSize);
     if (id == ERROR) {
+#ifdef LOGGING
+        printf("[ NOT_FOUND - over 9 ]\n");
+#endif
         return NOT_FOUND(clientSocket);
     }
 
@@ -123,6 +132,9 @@ int handleGetRequest(int clientSocket, char* request, int requestSize) {
     User user;
     int readResult = readUser(&user, id);
     if (readResult == ERROR) {
+#ifdef LOGGING
+        printf("[ NOT_FOUND - file ]\n");
+#endif
         return NOT_FOUND(clientSocket);
     }
 
@@ -130,7 +142,9 @@ int handleGetRequest(int clientSocket, char* request, int requestSize) {
     char response[RESPONSE_SIZE];
     serializeGetResponse(&user, response);
 
-    // send response
+#ifdef LOGGING
+    printf("[ %s ]\n", response);
+#endif
     return RESPOND(clientSocket, response);
 }
 
@@ -183,22 +197,25 @@ void serializeGetResponse(User* user, char* response) {
 
     // Write the http response using a success template, with a body
     sprintf(response, successResponseJsonTemplate, body);
-#ifdef LOGGING
-    printf("{ response: %s }\n", response);
-#endif
 }
 
 int handlePostRequest(int clientSocket, char* request, int requestSize) {
     // get id from request path
     int id = getIdFromPOSTRequest(request, requestSize);
     if (id == ERROR) {
+#ifdef LOGGING
+        printf("[ Not Found - over 9 ]\n");
+#endif
         return NOT_FOUND(clientSocket);
     }
 
     Transaction transaction;
     int parseResult = getTransactionFromBody(request, &transaction);
     if (parseResult == ERROR) {
-        return BAD_REQUEST(clientSocket);
+#ifdef LOGGING
+        printf("[ Unprocessable Entity - Failed to get body ]\n");
+#endif
+        return UNPROCESSABLE_ENTITY(clientSocket);
     }
 
     // update user on db by id
@@ -206,6 +223,19 @@ int handlePostRequest(int clientSocket, char* request, int requestSize) {
     int transactionResult = updateUserWithTransaction(id, &transaction, &user);
 
     if (transactionResult == ERROR) {
+#ifdef LOGGING
+        printf("[ Internal Server Error - Locking file ]\n");
+#endif
+        return INTERNAL_SERVER_ERROR(clientSocket);
+    } else if (transactionResult == FILE_NOT_FOUND) {
+#ifdef LOGGING
+        printf("[ Not Found - User file ]\n");
+#endif
+        return NOT_FOUND(clientSocket);
+    } else if (transactionResult == LIMIT_EXCEEDED_ERROR || transactionResult == INVALID_TIPO_ERROR) {
+#ifdef LOGGING
+        printf("[ Unprocessable entity - LIMIT OR TIPO ]\n");
+#endif
         return UNPROCESSABLE_ENTITY(clientSocket);
     }
 
@@ -213,6 +243,9 @@ int handlePostRequest(int clientSocket, char* request, int requestSize) {
     char response[RESPONSE_SIZE];
     serializePostResponse(&user, response);
 
+#ifdef LOGGING
+    printf("[ %s ]\n", response);
+#endif
     // send response
     return RESPOND(clientSocket, response);
 }
@@ -230,6 +263,19 @@ int getIdFromPOSTRequest(const char* request, int requestLength) {
     return request[15] - '0';
 }
 
+int getValorFromBody(char* str) {
+    const int maxDigits = 20;
+    for (int i = 0; i < maxDigits; i++) {
+        if (str[i] == ',') {
+            break;
+        }
+        if ((str[i] < '0' || str[i] > '9') && str[i] != ' ') {
+            return ERROR;
+        }
+    }
+    return atoi(str);
+}
+
 int getTransactionFromBody(char* request, Transaction* transaction) {
     // Find body in request
     char* body = strstr(request, "{");
@@ -241,7 +287,8 @@ int getTransactionFromBody(char* request, Transaction* transaction) {
     valor = strstr(valor, ":");
     errIfNull(valor);
     valor = &valor[1];
-    transaction->valor = atoi(valor);
+    transaction->valor = getValorFromBody(valor);
+    raiseIfError(transaction->valor);
 
     // Find tipo key in body
     char* tipo = strstr(body, "tipo");
@@ -267,6 +314,9 @@ int getTransactionFromBody(char* request, Transaction* transaction) {
     // Copy the value to the transaction
     char descricao[DESCRIPTION_SIZE];
     int length = descricaoEnd - descricaoStart;
+    if (length > 10 || length < 1) {
+        return ERROR;
+    }
     strncpy(descricao, descricaoStart, length);
     descricao[length] = '\0';
     strcpy(transaction->descricao, descricao);

@@ -37,6 +37,7 @@
 *.hex
 out
 resetDb
+rinha-backend-2024
 
 # Debug files
 *.dSYM/

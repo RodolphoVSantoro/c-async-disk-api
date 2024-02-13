@@ -24,6 +24,8 @@
 #define ERROR -1
 #define SUCCESS 0
 #define FILE_NOT_FOUND -2
+#define LIMIT_EXCEEDED_ERROR -3
+#define INVALID_TIPO_ERROR -4
 
 // Return error if pointer is NULL
 #define errIfNull(pointer) \
@@ -64,6 +66,9 @@ const char notFoundResponse[] = "HTTP/1.1 404 Not Found\nContent-Type: applicati
 
 const char unprocessableEntityResponse[] = "HTTP/1.1 422 Unprocessable Entity\nContent-Type: application/json\n\n{\"message\": \"Unprocessable Entity\"}";
 #define UNPROCESSABLE_ENTITY(clientSocket) STATIC_RESPONSE(clientSocket, unprocessableEntityResponse)
+
+const char internalServerErrorResponse[] = "HTTP/1.1 500 Internal Server Error\nContent-Type: application/json\n\n{\"message\": \"Internal Server Error\"}";
+#define INTERNAL_SERVER_ERROR(clientSocket) STATIC_RESPONSE(clientSocket, internalServerErrorResponse)
 
 // HTTP methods
 const char GET_METHOD[] = "GET";

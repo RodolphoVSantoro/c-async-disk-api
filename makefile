@@ -20,6 +20,9 @@ release: $(main)
 run:
 	./$(output) $(PORT)
 
+run-release:
+	./$(release_output) $(PORT)
+
 compResetDb:
 	$(compiler) -o resetDb src/resetDb.c
 
