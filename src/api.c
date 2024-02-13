@@ -1,9 +1,15 @@
 #include "httpHandler.h"
 
-int main() {
+int main(int argc, char* argv[]) {
 #ifdef RESET_DB
     initDb();
 #endif
+    if (argc < 2) {
+        printf("Usage: %s <port>\n", argv[0]);
+        return ERROR;
+    }
+
+    const int SERVER_PORT = atoi(argv[1]);
 
     int serverSocket = setupServer(SERVER_PORT, SERVER_BACKLOG);
 #ifdef LOGGING
@@ -24,8 +30,8 @@ int main() {
 
         // Wait for an activity on one of the sockets
         if (select(FD_SETSIZE, &readySockets, NULL, NULL, NULL) < 0) {
-            perror("Select failed");
-            exit(EXIT_FAILURE);
+            printf("Select failed");
+            return ERROR;
         }
 
         // Check all sockets for activity
@@ -45,13 +51,15 @@ int main() {
 
                     if (bytesRead >= 1 && bytesRead < SOCKET_READ_SIZE) {
                         request[bytesRead] = '\0';
-                        int sentResult = handleRequest(request, bytesRead, clientSocket);
 #ifdef LOGGING
+                        int sentResult = handleRequest(request, bytesRead, clientSocket);
                         if (sentResult == ERROR) {
                             printf("{ Error sending response }\n");
                         } else {
                             printf("{ Request handled }\n");
                         }
+#else
+                        handleRequest(request, bytesRead, clientSocket);
 #endif
                     }
 

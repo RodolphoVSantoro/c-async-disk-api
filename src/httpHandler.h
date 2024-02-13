@@ -8,6 +8,31 @@
 
 #include "dbFiles.h"
 
+// server port
+// #define SERVER_PORT 9999
+// max connections waiting to be accepted
+#define SERVER_BACKLOG 1000
+// 8KB
+#define SOCKET_READ_SIZE 8 * 1024
+// 16KB
+#define RESPONSE_SIZE 16 * 1024
+// 8KB
+#define RESPONSE_BODY_SIZE 8 * 1024
+// 4KB
+#define RESPONSE_BODY_TRANSACTIONS_SIZE 4 * 1024
+
+// Debug flags
+// Comment out to enable logging
+#define LOGGING 1
+
+// socket send default flag
+#define SEND_DEFAULT 0
+#define PROTOCOL_DEFAULT 0
+
+// Startup server socket on the given port, with the max number of connections waiting to be accepted set to backlog
+// Crash the program if the socket creation or binding fails
+int setupServer(short port, int backlog);
+
 // Handles the request and sends the response to the clientSocket
 int handleRequest(char* request, int requestSize, int clientSocket);
 
@@ -35,11 +60,34 @@ int getTransactionFromBody(char* request, Transaction* transaction);
 // Serializes POST transaction response into json and writes it to response
 void serializePostResponse(User* user, char* response);
 
+int setupServer(short port, int backlog) {
+    int serverSocket;
+    check((serverSocket = socket(AF_INET, SOCK_STREAM, PROTOCOL_DEFAULT)), "Failed to create socket");
+
+    SA_IN serverAddress;
+    serverAddress.sin_family = AF_INET;
+    serverAddress.sin_addr.s_addr = INADDR_ANY;
+    serverAddress.sin_port = htons(port);
+
+    //  To avoid "Address already in use" error when restarting the server because of the TIME_WAIT state
+    // https://handsonnetworkprogramming.com/articles/bind-error-98-eaddrinuse-10048-wsaeaddrinuse-address-already-in-use/
+    int yes = 1;
+    check(setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes)), "Failed to set socket options");
+
+    check(bind(serverSocket, (SA*)&serverAddress, sizeof(serverAddress)), "Failed to bind socket");
+    check(listen(serverSocket, backlog), "Failed to listen on socket");
+
+    return serverSocket;
+}
+
 int handleRequest(char* request, int requestSize, int clientSocket) {
 #ifdef LOGGING
     const char separator[] = "\n----------------------------------------------\n";
 
-    printf("{ Received:");
+    char reqTime[DATE_SIZE];
+    getCurrentTimeStr(reqTime);
+
+    printf("{ %s - Received:", reqTime);
     puts(separator);
     printf("[%s]", request);
     puts(separator);
@@ -106,7 +154,7 @@ void serializeGetResponse(User* user, char* response) {
 
     // First part of the response
     getCurrentTimeStr(dateTime);
-    const char* userDataTemplate = "{\"saldo\":%d,\"data_extrato\":\"%s\",\"limite\":%d,\"ultimas_transacoes\":[";
+    const char* userDataTemplate = "{\"saldo\":{\"total\":%d,\"data_extrato\":\"%s\",\"limite\":%d},\"ultimas_transacoes\":[";
     sprintf(transactionData,
             userDataTemplate,
             user->total, dateTime, user->limit);

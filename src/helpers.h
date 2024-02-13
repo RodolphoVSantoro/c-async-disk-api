@@ -20,29 +20,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-// server port
-#define SERVER_PORT 9999
-// max connections waiting to be accepted
-#define SERVER_BACKLOG 10
-// 8KB
-#define SOCKET_READ_SIZE 8 * 1024
-// 16KB
-#define RESPONSE_SIZE 16 * 1024
-// 8KB
-#define RESPONSE_BODY_SIZE 8 * 1024
-// 4KB
-#define RESPONSE_BODY_TRANSACTIONS_SIZE 4 * 1024
-
-// Debug flags
-// Comment out to enable logging
-#define LOGGING 1
-// Comment out to reset the database on every server startup
-#define RESET_DB 1
-
-// socket send default flag
-#define SEND_DEFAULT 0
-#define PROTOCOL_DEFAULT 0
-
 // Custom error codes
 #define ERROR -1
 #define SUCCESS 0
@@ -101,10 +78,6 @@ typedef struct sockaddr_in SA_IN;
 // Crash the program if the expression evaluates to ERROR
 int check(int expression, const char* message);
 
-// Startup server socket on the given port, with the max number of connections waiting to be accepted set to backlog
-// Crash the program if the socket creation or binding fails
-int setupServer(short port, int backlog);
-
 // Compare two strings up to maxLength
 int partialEqual(const char* str1, const char* str2, int maxLength);
 
@@ -117,26 +90,6 @@ int check(int expression, const char* message) {
         exit(EXIT_FAILURE);
     }
     return expression;
-}
-
-int setupServer(short port, int backlog) {
-    int serverSocket;
-    check((serverSocket = socket(AF_INET, SOCK_STREAM, PROTOCOL_DEFAULT)), "Failed to create socket");
-
-    SA_IN serverAddress;
-    serverAddress.sin_family = AF_INET;
-    serverAddress.sin_addr.s_addr = INADDR_ANY;
-    serverAddress.sin_port = htons(port);
-
-    //  To avoid "Address already in use" error when restarting the server because of the TIME_WAIT state
-    // https://handsonnetworkprogramming.com/articles/bind-error-98-eaddrinuse-10048-wsaeaddrinuse-address-already-in-use/
-    int yes = 1;
-    check(setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes)), "Failed to set socket options");
-
-    check(bind(serverSocket, (SA*)&serverAddress, sizeof(serverAddress)), "Failed to bind socket");
-    check(listen(serverSocket, backlog), "Failed to listen on socket");
-
-    return serverSocket;
 }
 
 int partialEqual(const char* str1, const char* str2, int maxLength) {

@@ -8,6 +8,9 @@
 
 #include "helpers.h"
 
+// Comment out to reset the database on every server startup
+#define RESET_DB 1
+
 // Open file modes
 #define READ_BINARY "rb"
 #define WRITE_BINARY "wb"
