@@ -44,4 +44,4 @@ Mas por favor, nunca usem o código fonte nesse repositório para se basearem em
 
 ### Menções
 
-- [Reinaldo Rozato Junior]([oloko64](https://github.com/oloko64)) -> Ajuda com melhorias no nginx e no docker
+- [Reinaldo Rozato Junior]((https://github.com/oloko64)) -> Ajuda com melhorias no nginx e no docker
