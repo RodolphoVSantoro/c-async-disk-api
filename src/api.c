@@ -9,7 +9,8 @@ int main(int argc, char* argv[]) {
     const int SERVER_PORT = atoi(argv[1]);
 
 #ifdef RESET_DB
-    system("mkdir -p data");
+    int createFolderResult = system("mkdir -p data");
+    raiseIfError(createFolderResult);
     int resetDbResult = initDb();
     raiseIfError(resetDbResult);
 #endif
