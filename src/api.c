@@ -8,6 +8,12 @@ int main(int argc, char* argv[]) {
 
     const int SERVER_PORT = atoi(argv[1]);
 
+#ifdef RESET_DB
+    system("mkdir -p data");
+    int resetDbResult = initDb();
+    raiseIfError(resetDbResult);
+#endif
+
     int serverSocket = setupServer(SERVER_PORT, SERVER_BACKLOG);
 #ifdef LOGGING
     printf("{ Server is running(%d) }\n", serverSocket);

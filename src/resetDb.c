@@ -1,7 +1,7 @@
 #include "dbFiles.h"
 
 int main() {
-    system("mkdir data");
+    system("mkdir -p data");
     int resetDbResult = initDb();
     raiseIfError(resetDbResult);
     return SUCCESS;

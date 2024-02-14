@@ -27,20 +27,17 @@ Mas por favor, nunca usem o código fonte nesse repositório para se basearem em
 
 ---
 
-### Como rodar
-```bash
-make resetDb # para resetar/criar o banco
-sudo docker compose build # para buildar a imagem
-sudo docker compose up # para rodar a aplicação
-```
-
----
-
 ### Preview testes
 
 <img src="https://i.imgur.com/QARPqZu.png" alt="preview1" width="auto" height="auto">
+
 <img src="https://i.imgur.com/wlZj7Ft.png" alt="preview2" width="auto" height="auto">
+
 <img src="https://i.imgur.com/9EAG9iF.png" alt="preview3" width="auto" height="auto">
+
+#### Teste bônus
+
+<img src="https://i.imgur.com/VX6tckh.png" alt="preview4" width="auto" height="auto">
 
 ---
 ### Links

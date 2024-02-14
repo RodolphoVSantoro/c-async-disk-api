@@ -11,6 +11,9 @@
 
 #include "helpers.h"
 
+// Comment this line to keep the database on server start
+#define RESET_DB 1
+
 // Open file modes
 #define READ_BINARY "rb"
 #define WRITE_BINARY "wb"
