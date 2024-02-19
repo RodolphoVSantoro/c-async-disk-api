@@ -23,7 +23,7 @@
 
 // Debug flags
 // Comment out to enable logging
-#define LOGGING 1
+// #define LOGGING 1
 #ifdef LOGGING
 #define log(message, ...) printf(message, ##__VA_ARGS__)
 #else
