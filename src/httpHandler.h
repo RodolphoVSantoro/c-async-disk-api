@@ -23,7 +23,14 @@
 
 // Debug flags
 // Comment out to enable logging
-// #define LOGGING 1
+#define LOGGING 1
+#ifdef LOGGING
+#define log(message, ...) printf(message, ##__VA_ARGS__)
+#else
+#define log(message, ...) (void)0
+#endif
+
+#define LOG_SEPARATOR "\n----------------------------------------------\n"
 
 // socket send default flag
 #define SEND_DEFAULT 0
@@ -81,24 +88,18 @@ int setupServer(short port, int backlog) {
 }
 
 int handleRequest(char* request, int requestSize, int clientSocket) {
-#ifdef LOGGING
-    const char separator[] = "\n----------------------------------------------\n";
-
     char reqTime[DATE_SIZE];
     getCurrentTimeStr(reqTime);
 
-    printf("{ %s - Received:", reqTime);
-    puts(separator);
-    printf("[%s]", request);
-    puts(separator);
-    printf("(%d bytes read) }\n", requestSize);
-#endif
+    log("{ %s - Received:", reqTime);
+    log(LOG_SEPARATOR);
+    log("[%s]", request);
+    log(LOG_SEPARATOR);
+    log("(%d bytes read) }\n", requestSize);
 
     // "GET" alone has 3 bytes, so we need at least 4 bytes to consume a request
     if (requestSize < 4) {
-#ifdef LOGGING
-        printf("[ Unprocessable Entity ]\n");
-#endif
+        log("[ Unprocessable Entity ]\n");
         return UNPROCESSABLE_ENTITY(clientSocket);
     }
 
@@ -112,9 +113,7 @@ int handleRequest(char* request, int requestSize, int clientSocket) {
         return handlePostRequest(clientSocket, request, requestSize);
     }
 
-#ifdef LOGGING
-    printf("[ Method not allowed ]\n");
-#endif
+    log("[ Method not allowed ]\n");
     return METHOD_NOT_ALLOWED(clientSocket);
 }
 
@@ -122,9 +121,7 @@ int handleGetRequest(int clientSocket, char* request, int requestSize) {
     // get id from request path
     int id = getIdFromGETRequest(request, requestSize);
     if (id == ERROR) {
-#ifdef LOGGING
-        printf("[ NOT_FOUND - over 9 ]\n");
-#endif
+        log("[ NOT_FOUND - over 9 ]\n");
         return NOT_FOUND(clientSocket);
     }
 
@@ -132,9 +129,7 @@ int handleGetRequest(int clientSocket, char* request, int requestSize) {
     User user;
     int readResult = readUser(&user, id);
     if (readResult == ERROR) {
-#ifdef LOGGING
-        printf("[ NOT_FOUND - file ]\n");
-#endif
+        log("[ NOT_FOUND - file ]\n");
         return NOT_FOUND(clientSocket);
     }
 
@@ -142,9 +137,7 @@ int handleGetRequest(int clientSocket, char* request, int requestSize) {
     char response[RESPONSE_SIZE];
     serializeGetResponse(&user, response);
 
-#ifdef LOGGING
-    printf("[ %s ]\n", response);
-#endif
+    log("[ %s ]\n", response);
     return RESPOND(clientSocket, response);
 }
 
@@ -203,18 +196,14 @@ int handlePostRequest(int clientSocket, char* request, int requestSize) {
     // get id from request path
     int id = getIdFromPOSTRequest(request, requestSize);
     if (id == ERROR) {
-#ifdef LOGGING
-        printf("[ Not Found - over 9 ]\n");
-#endif
+        log("[ Not Found - over 9 ]\n");
         return NOT_FOUND(clientSocket);
     }
 
     Transaction transaction;
     int parseResult = getTransactionFromBody(request, &transaction);
     if (parseResult == ERROR) {
-#ifdef LOGGING
-        printf("[ Unprocessable Entity - Failed to get body ]\n");
-#endif
+        log("[ Unprocessable Entity - Failed to get body ]\n");
         return UNPROCESSABLE_ENTITY(clientSocket);
     }
 
@@ -223,19 +212,13 @@ int handlePostRequest(int clientSocket, char* request, int requestSize) {
     int transactionResult = updateUserWithTransaction(id, &transaction, &user);
 
     if (transactionResult == ERROR) {
-#ifdef LOGGING
-        printf("[ Internal Server Error - Locking file ]\n");
-#endif
+        log("[ Internal Server Error - Locking file ]\n");
         return INTERNAL_SERVER_ERROR(clientSocket);
     } else if (transactionResult == FILE_NOT_FOUND) {
-#ifdef LOGGING
-        printf("[ Not Found - User file ]\n");
-#endif
+        log("[ Not Found - User file ]\n");
         return NOT_FOUND(clientSocket);
     } else if (transactionResult == LIMIT_EXCEEDED_ERROR || transactionResult == INVALID_TIPO_ERROR) {
-#ifdef LOGGING
-        printf("[ Unprocessable entity - LIMIT OR TIPO ]\n");
-#endif
+        log("[ Unprocessable entity - LIMIT OR TIPO ]\n");
         return UNPROCESSABLE_ENTITY(clientSocket);
     }
 
@@ -243,9 +226,7 @@ int handlePostRequest(int clientSocket, char* request, int requestSize) {
     char response[RESPONSE_SIZE];
     serializePostResponse(&user, response);
 
-#ifdef LOGGING
-    printf("[ %s ]\n", response);
-#endif
+    log("[ %s ]\n", response);
     // send response
     return RESPOND(clientSocket, response);
 }

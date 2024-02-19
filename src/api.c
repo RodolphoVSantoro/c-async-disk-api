@@ -16,11 +16,9 @@ int main(int argc, char* argv[]) {
 #endif
 
     int serverSocket = setupServer(SERVER_PORT, SERVER_BACKLOG);
-#ifdef LOGGING
-    printf("{ Server is running(%d) }\n", serverSocket);
-    printf("{ Listening on port %d }\n", SERVER_PORT);
-    printf("{ FD_SETSIZE: %d }\n\n", FD_SETSIZE);
-#endif
+    log("{ Server is running(%d) }\n", serverSocket);
+    log("{ Listening on port %d }\n", SERVER_PORT);
+    log("{ FD_SETSIZE: %d }\n", FD_SETSIZE);
 
     // Set of socket descriptors
     fd_set currentSockets, readySockets;
@@ -55,16 +53,12 @@ int main(int argc, char* argv[]) {
 
                     if (bytesRead >= 1 && bytesRead < SOCKET_READ_SIZE) {
                         request[bytesRead] = '\0';
-#ifdef LOGGING
                         int sentResult = handleRequest(request, bytesRead, clientSocket);
                         if (sentResult == ERROR) {
-                            printf("{ Error sending response }\n");
+                            log("{ Error sending response }\n");
                         } else {
-                            printf("{ Request handled }\n");
+                            log("{ Request handled }\n");
                         }
-#else
-                        handleRequest(request, bytesRead, clientSocket);
-#endif
                     }
 
                     close(clientSocket);
