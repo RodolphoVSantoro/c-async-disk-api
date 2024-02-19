@@ -36,13 +36,13 @@ int setupServer(short port, int backlog);
 // Handles the request and sends the response to the clientSocket
 int handleRequest(char* request, int requestSize, int clientSocket);
 
-// Handles any GET request, assuming all GET requests are for the extract endpoint
+// Handles any GET request, assuming all GET requests are for the bank statement endpoint
 int handleGetRequest(int clientSocket, char* request, int requestSize);
 // Assuming the request is "GET /clientes/1/..." id is on the 14th position
 // Returns ERROR if the request is invalid
 // Returns the id if the request is valid
 int getIdFromGETRequest(const char* request, int requestLength);
-// Serializes GET extract response into json and writes it to response
+// Serializes GET bank statement response into json and writes it to response
 void serializeGetResponse(User* user, char* response);
 
 // Handles any POST request, assuming all POST requests are for creating transactions
