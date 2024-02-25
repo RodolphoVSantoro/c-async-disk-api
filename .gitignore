@@ -62,3 +62,8 @@ data/
 
 #test results
 **/results
+
+#profiling
+profiling
+.python-version
+debug.res

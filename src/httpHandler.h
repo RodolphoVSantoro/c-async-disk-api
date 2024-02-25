@@ -18,8 +18,8 @@
 #define RESPONSE_SIZE 16 * 1024
 // 8KB
 #define RESPONSE_BODY_SIZE 8 * 1024
-// 4KB
-#define RESPONSE_BODY_TRANSACTIONS_SIZE 4 * 1024
+// 256B
+#define RESPONSE_BODY_TRANSACTIONS_SIZE 256
 
 // Debug flags
 // Comment out to enable logging
@@ -154,37 +154,42 @@ int getIdFromGETRequest(const char* request, int requestLength) {
     return request[14] - '0';
 }
 
-void serializeGetResponse(User* user, char* response) {
-    char body[RESPONSE_BODY_SIZE] = "";
+void serializeOrderedTransactions(User* user, char* body) {
+    if (user->nTransactions == 0) {
+        return;
+    }
     char transactionData[RESPONSE_BODY_TRANSACTIONS_SIZE];
-    char dateTime[DATE_SIZE];
 
-    // First part of the response
-    getCurrentTimeStr(dateTime);
-    const char* userDataTemplate = "{\"saldo\":{\"total\":%d,\"data_extrato\":\"%s\",\"limite\":%d},\"ultimas_transacoes\":[";
-    sprintf(transactionData,
-            userDataTemplate,
-            user->total, dateTime, user->limit);
-    strcat(body, transactionData);
-
-    Transaction orderedTransactions[10];
-    getOrderedTransactions(user, orderedTransactions);
-
-    // Transactions array
-    const char* transactionTemplate = "{\"valor\":%d,\"tipo\":\"%c\",\"descricao\":\"%s\",\"realizada_em\":\"%s\"}";
-    for (int i = 0; i < user->nTransactions; i++) {
-        Transaction transaction = orderedTransactions[i];
-
+    int i = user->oldestTransaction;
+    i = (i - 1 + user->nTransactions) % user->nTransactions;
+    for (int j = 0; j < user->nTransactions; j++) {
+        Transaction transaction = user->transactions[i];
+        const char* transactionTemplate = "{\"valor\":%d,\"tipo\":\"%c\",\"descricao\":\"%s\",\"realizada_em\":\"%s\"},";
         sprintf(transactionData,
                 transactionTemplate,
                 transaction.valor, transaction.tipo, transaction.descricao, transaction.realizada_em);
 
         strcat(body, transactionData);
-
-        if (i < user->nTransactions - 1) {
-            strcat(body, ",");
-        }
+        i = (i - 1 + user->nTransactions) % user->nTransactions;
     }
+    int length = strlen(body);
+    body[length - 1] = '\0';
+}
+
+void serializeGetResponse(User* user, char* response) {
+    char body[RESPONSE_BODY_SIZE] = "";
+    char dateTime[DATE_SIZE];
+
+    // First part of the response
+    getCurrentTimeStr(dateTime);
+    const char* userDataTemplate = "{\"saldo\":{\"total\":%d,\"data_extrato\":\"%s\",\"limite\":%d},\"ultimas_transacoes\":[";
+    sprintf(body,
+            userDataTemplate,
+            user->total, dateTime, user->limit);
+    // strcat(body, transactionData);
+
+    serializeOrderedTransactions(user, body);
+
     // Close the array and the outermost object
     strcat(body, "]}");
 

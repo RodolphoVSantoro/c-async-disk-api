@@ -6,6 +6,7 @@ warn=-Wall -Wextra -Werror -pedantic
 flags=-std=gnu99
 debug=-fsanitize=address -g
 release=-O3
+profiling=-pg
 
 ifndef PORT
 override PORT = 9999
@@ -28,3 +29,7 @@ compResetDb:
 
 resetDb: compResetDb
 	./resetDb
+
+profile:
+	$(compiler) -o $(output) $(flags) $(profiling) $(warn) $(main)
+	./$(output) $(PORT)

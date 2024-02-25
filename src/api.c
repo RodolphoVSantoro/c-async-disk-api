@@ -1,5 +1,14 @@
 #include "httpHandler.h"
 
+int serverSocket;
+
+// For profiling even if the server closes from a ctrl+c signal
+void signal_callback_handler(int signum) {
+    printf("{ Caught signal %d }\n", signum);
+    close(serverSocket);
+    exit(EXIT_SUCCESS);
+}
+
 int main(int argc, char* argv[]) {
     if (argc < 2) {
         printf("Usage: %s <port>\n", argv[0]);
@@ -15,7 +24,10 @@ int main(int argc, char* argv[]) {
     raiseIfError(resetDbResult);
 #endif
 
-    int serverSocket = setupServer(SERVER_PORT, SERVER_BACKLOG);
+    serverSocket = setupServer(SERVER_PORT, SERVER_BACKLOG);
+
+    signal(SIGINT, signal_callback_handler);
+
     log("{ Server is running(%d) }\n", serverSocket);
     log("{ Listening on port %d }\n", SERVER_PORT);
     log("{ FD_SETSIZE: %d }\n", FD_SETSIZE);

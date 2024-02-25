@@ -81,7 +81,6 @@ int addTransaction(User* user, Transaction* transaction);
 int addSaldo(User* user, Transaction* transaction);
 
 // Fills the orderedTransactions array with the user's transactions ordered by the oldest
-void getOrderedTransactions(User* user, Transaction* orderedTransactions);
 
 int initDb() {
     User user;
@@ -191,18 +190,6 @@ int addSaldo(User* user, Transaction* transaction) {
         return SUCCESS;
     }
     return INVALID_TIPO_ERROR;
-}
-
-void getOrderedTransactions(User* user, Transaction* orderedTransactions) {
-    if (user->nTransactions == 0) {
-        return;
-    }
-    int i = user->oldestTransaction;
-    i = (i - 1 + user->nTransactions) % user->nTransactions;
-    for (int j = 0; j < user->nTransactions; j++) {
-        orderedTransactions[j] = user->transactions[i];
-        i = (i - 1 + user->nTransactions) % user->nTransactions;
-    }
 }
 
 #endif
