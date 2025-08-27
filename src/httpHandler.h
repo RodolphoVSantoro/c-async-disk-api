@@ -117,6 +117,7 @@ int handleRequest(char* request, int requestSize, int clientSocket) {
     return METHOD_NOT_ALLOWED(clientSocket);
 }
 
+// comentario de teste
 int handleGetRequest(int clientSocket, char* request, int requestSize) {
     // get id from request path
     int id = getIdFromGETRequest(request, requestSize);
