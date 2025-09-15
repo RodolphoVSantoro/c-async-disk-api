@@ -21,17 +21,6 @@
 // 256B
 #define RESPONSE_BODY_TRANSACTIONS_SIZE 256
 
-// Debug flags
-// Comment out to enable logging
-// #define LOGGING 1
-#ifdef LOGGING
-#define log(message, ...) printf(message, ##__VA_ARGS__)
-#else
-#define log(message, ...) (void)0
-#endif
-
-#define LOG_SEPARATOR "\n----------------------------------------------\n"
-
 // socket send default flag
 #define SEND_DEFAULT 0
 #define PROTOCOL_DEFAULT 0
@@ -89,7 +78,7 @@ int setupServer(short port, int backlog) {
 
 int handleRequest(char* request, int requestSize, int clientSocket) {
     char reqTime[DATE_SIZE];
-    getCurrentTimeStr(reqTime);
+    getCurrentTimeStr(reqTime, sizeof(reqTime));
 
     log("{ %s - Received:", reqTime);
     log(LOG_SEPARATOR);
@@ -181,7 +170,7 @@ void serializeGetResponse(User* user, char* response) {
     char dateTime[DATE_SIZE];
 
     // First part of the response
-    getCurrentTimeStr(dateTime);
+    getCurrentTimeStr(dateTime, sizeof(dateTime));
     const char* userDataTemplate = "{\"saldo\":{\"total\":%d,\"data_extrato\":\"%s\",\"limite\":%d},\"ultimas_transacoes\":[";
     sprintf(body,
             userDataTemplate,
@@ -207,24 +196,26 @@ int handlePostRequest(int clientSocket, char* request, int requestSize) {
 
     Transaction transaction;
     int parseResult = getTransactionFromBody(request, &transaction);
-    if (parseResult == ERROR) {
+    if (parseResult != SUCCESS) {
         log("[ Unprocessable Entity - Failed to get body ]\n");
         return UNPROCESSABLE_ENTITY(clientSocket);
     }
+    log("Transaction from body: valor=%d, tipo=%c, descricao=%s, realizada_em=%s\n",
+        transaction.valor, transaction.tipo, transaction.descricao, transaction.realizada_em);
 
     // update user on db by id
     User user;
     int transactionResult = updateUserWithTransaction(id, &transaction, &user);
-
-    if (transactionResult == ERROR) {
-        log("[ Internal Server Error - Locking file ]\n");
-        return INTERNAL_SERVER_ERROR(clientSocket);
-    } else if (transactionResult == FILE_NOT_FOUND) {
+    
+    if (transactionResult == FILE_NOT_FOUND) {
         log("[ Not Found - User file ]\n");
         return NOT_FOUND(clientSocket);
     } else if (transactionResult == LIMIT_EXCEEDED_ERROR || transactionResult == INVALID_TIPO_ERROR) {
         log("[ Unprocessable entity - LIMIT OR TIPO ]\n");
         return UNPROCESSABLE_ENTITY(clientSocket);
+    } else if (transactionResult != SUCCESS) {
+        log("[ Internal Server Error - error code %d ]\n", transactionResult);
+        return INTERNAL_SERVER_ERROR(clientSocket);
     }
 
     // serialize user to response
@@ -249,7 +240,7 @@ int getIdFromPOSTRequest(const char* request, int requestLength) {
     return request[15] - '0';
 }
 
-int getValorFromBody(char* str) {
+int getValorFromBody(char* str, int* valor) {
     const int maxDigits = 20;
     for (int i = 0; i < maxDigits; i++) {
         if (str[i] == ',') {
@@ -259,7 +250,8 @@ int getValorFromBody(char* str) {
             return ERROR;
         }
     }
-    return atoi(str);
+    *valor = atoi(str);
+    return SUCCESS;
 }
 
 int getTransactionFromBody(char* request, Transaction* transaction) {
@@ -273,8 +265,8 @@ int getTransactionFromBody(char* request, Transaction* transaction) {
     valor = strstr(valor, ":");
     errIfNull(valor);
     valor = &valor[1];
-    transaction->valor = getValorFromBody(valor);
-    raiseIfError(transaction->valor);
+    int getValorResult = getValorFromBody(valor, &transaction->valor);
+    raiseIfError(getValorResult);
 
     // Find tipo key in body
     char* tipo = strstr(body, "tipo");
@@ -284,6 +276,7 @@ int getTransactionFromBody(char* request, Transaction* transaction) {
     tipo = strstr(tipo, "\"");
     errIfNull(tipo);
     transaction->tipo = tipo[1];
+    log("tipo = %c\n", tipo[1]);
 
     // Find descricao key in body
     char* descricaoStart = strstr(body, "descricao");
@@ -308,7 +301,7 @@ int getTransactionFromBody(char* request, Transaction* transaction) {
     strcpy(transaction->descricao, descricao);
 
     // Set the transaction realizada_em to the current time
-    getCurrentTimeStr(transaction->realizada_em);
+    getCurrentTimeStr(transaction->realizada_em, sizeof(transaction->realizada_em));
 
     return SUCCESS;
 }

@@ -92,9 +92,7 @@ int initDb() {
         user.id = id + 1;
         user.limit = userInitialLimits[id];
         int writeResult = writeUser(&user);
-        if (writeResult == ERROR) {
-            return ERROR;
-        }
+        raiseIfError(writeResult);
     }
 
     return SUCCESS;
@@ -103,32 +101,51 @@ int initDb() {
 int writeUser(User* user) {
     char fname[FILE_NAME_SIZE];
     sprintf(fname, userFileTemplate, user->id);
-    FILE* fpTotals = fopen(fname, WRITE_BINARY);
-    errIfNull(fpTotals);
-    int fpTotalsFileDescriptor = fileno(fpTotals);
-    int lockResult = flock(fpTotalsFileDescriptor, LOCK_EX);
+    FILE* userFile = fopen(fname, WRITE_BINARY);
+    errIfNull(userFile);
+    int userFileDescriptor = fileno(userFile);
+    
+    int lockResult = flock(userFileDescriptor, LOCK_EX);
     raiseIfError(lockResult);
-    fwrite(user, sizeof(User), 1, fpTotals);
-    fflush(fpTotals);
-    int release = flock(fpTotalsFileDescriptor, LOCK_UN);
+    
+    int userCount = 1;
+    int writeResult = fwrite(user, sizeof(User), userCount, userFile);
+    if(writeResult != userCount) {
+        return UNSUCCESSFUL_WRITE_ERROR;
+    }
+    
+    int flushResult = fflush(userFile);
+    raiseIfError(flushResult);
+    
+    int release = flock(userFileDescriptor, LOCK_UN);
     raiseIfError(release);
-    fclose(fpTotals);
+    
+    int closeResult = fclose(userFile);
+    raiseIfError(closeResult);
     return SUCCESS;
 }
 
 int readUser(User* user, int id) {
     char fname[FILE_NAME_SIZE];
     sprintf(fname, userFileTemplate, id);
-    FILE* fpTotals = fopen(fname, READ_BINARY);
-    errIfNull(fpTotals);
-    int fpTotalsFileDescriptor = fileno(fpTotals);
-    int lockResult = flock(fpTotalsFileDescriptor, LOCK_SH);
+    FILE* userFile = fopen(fname, READ_BINARY);
+    errIfNull(userFile);
+    int userFileDescriptor = fileno(userFile);
+    
+    int lockResult = flock(userFileDescriptor, LOCK_SH);
+    int userCount = 1;
+    int readResult = fread(user, sizeof(User), userCount, userFile);
+    int release = flock(userFileDescriptor, LOCK_UN);
+    int closeResult = fclose(userFile);
+    
+    if(readResult != userCount) {
+        return UNSUCCESSFUL_READ_ERROR;
+    }
     raiseIfError(lockResult);
-    int readResult = fread(user, sizeof(User), 1, fpTotals);
     raiseIfError(readResult);
-    int release = flock(fpTotalsFileDescriptor, LOCK_UN);
     raiseIfError(release);
-    fclose(fpTotals);
+    raiseIfError(closeResult);
+
     return SUCCESS;
 }
 
@@ -139,45 +156,57 @@ int updateUserWithTransaction(int id, Transaction* transaction, User* user) {
     if ((access(fname, F_OK) != 0)) {
         return ERROR;
     }
-    FILE* fpTotals = fopen(fname, READ_WRITE_BINARY);
-    raiseIfFileNotFound(fpTotals);
-    int fpTotalsFileDescriptor = fileno(fpTotals);
-    int lockResult = flock(fpTotalsFileDescriptor, LOCK_EX);
+    FILE* userFile = fopen(fname, READ_WRITE_BINARY);
+    raiseIfFileNotFound(userFile);
+    int userFileDescriptor = fileno(userFile);
+    int lockResult = flock(userFileDescriptor, LOCK_EX);
     raiseIfError(lockResult);
-    int readResult = fread(user, sizeof(User), 1, fpTotals);
-    raiseIfError(readResult);
 
+    int userCount = 1;
+    int readResult = fread(user, sizeof(User), userCount, userFile);
+    
     int transactionResult = addTransaction(user, transaction);
+    
+    // Go back to the beginning of the file, because fread moved the cursor
+    int seekResult = fseek(userFile, 0, SEEK_SET);
+    int writeResult = fwrite(user, sizeof(User), userCount, userFile);
+    int flushResult = fflush(userFile);
+    int release = flock(userFileDescriptor, LOCK_UN);
+    int closeResult = fclose(userFile);
 
-    if (transactionResult == 0) {
-        // Go back to the beginning of the file, because fread moved the cursor
-        fseek(fpTotals, 0, SEEK_SET);
-        fwrite(user, sizeof(User), 1, fpTotals);
+    if(readResult != userCount) {
+        return UNSUCCESSFUL_READ_ERROR;
     }
-    fflush(fpTotals);
-    int release = flock(fpTotalsFileDescriptor, LOCK_UN);
+    raiseIfError(transactionResult);
+    raiseIfError(seekResult);
+    if(writeResult != userCount) {
+        return UNSUCCESSFUL_READ_ERROR;
+    }
+    raiseIfError(flushResult);
     raiseIfError(release);
-    fclose(fpTotals);
-    return transactionResult;
+    raiseIfError(closeResult);
+    
+    return SUCCESS;
 }
 
 int addTransaction(User* user, Transaction* transaction) {
     int resultSaldo = addSaldo(user, transaction);
-    if (resultSaldo != SUCCESS) {
-        return resultSaldo;
-    }
+    raiseIfError(resultSaldo);
+
     if (user->nTransactions == 10) {
         user->transactions[user->oldestTransaction] = *transaction;
         moveRightInTransactions(user->oldestTransaction);
         return SUCCESS;
     }
 
+    // TODO: check if i need nTransactions at all
     user->transactions[user->nTransactions] = *transaction;
     user->nTransactions++;
     return SUCCESS;
 }
 
 int addSaldo(User* user, Transaction* transaction) {
+    log("Adding saldo %d of tipo %c to user %d\n", transaction->valor, transaction->tipo, user->id);
     if (transaction->tipo == 'd') {
         int newTotal = user->total - transaction->valor;
         if (-1 * newTotal > user->limit) {

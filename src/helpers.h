@@ -21,12 +21,26 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+// Logging
+// Debug flags
+// Comment out to enable logging
+#define LOGGING 1
+#ifdef LOGGING
+#define log(message, ...) printf(message, ##__VA_ARGS__)
+#else
+#define log(message, ...) (void)0
+#endif
+
+#define LOG_SEPARATOR "\n----------------------------------------------\n"
+
 // Custom error codes
 #define ERROR -1
 #define SUCCESS 0
 #define FILE_NOT_FOUND -2
 #define LIMIT_EXCEEDED_ERROR -3
 #define INVALID_TIPO_ERROR -4
+#define UNSUCCESSFUL_READ_ERROR -5
+#define UNSUCCESSFUL_WRITE_ERROR -6
 
 // Return error if pointer is NULL
 #define errIfNull(pointer) \
@@ -36,13 +50,15 @@
 
 // Return error if the result is an error
 #define raiseIfError(result) \
-    if (result == ERROR) {   \
-        return ERROR;        \
+    if (result != SUCCESS) {   \
+        log("Error occurred code %d", result);   \
+        return result;        \
     }
 
 // Return FILE_NOT_FOUND if the file pointer is NULL
 #define raiseIfFileNotFound(filePointer) \
     if (filePointer == NULL) {           \
+        log("File not found");           \
         return FILE_NOT_FOUND;           \
     }
 
@@ -88,7 +104,7 @@ int check(int expression, const char* message);
 int partialEqual(const char* str1, const char* str2, int maxLength);
 
 // Gets system time and stores it in timeStr
-void getCurrentTimeStr(char* timeStr);
+void getCurrentTimeStr(char* timeStr, int size);
 
 int check(int expression, const char* message) {
     if (expression == ERROR) {
@@ -110,10 +126,8 @@ int partialEqual(const char* str1, const char* str2, int maxLength) {
     return true;
 }
 
-void getCurrentTimeStr(char* timeStr) {
-    time_t mytime = time(NULL);
-    char* time_str = ctime(&mytime);
-    time_str[strlen(time_str) - 1] = '\0';
-    strcpy(timeStr, time_str);
+void getCurrentTimeStr(char* timeStr, int size) {
+    time_t now = time(NULL);
+    strftime(timeStr, size, "%Y-%m-%d %H:%M:%S", localtime(&now));
 }
 #endif

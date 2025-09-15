@@ -17,6 +17,7 @@ int main(int argc, char* argv[]) {
 
     const int SERVER_PORT = atoi(argv[1]);
 
+    log("{ Starting server... }\n");
 #ifdef RESET_DB
     int createFolderResult = system("mkdir -p data");
     raiseIfError(createFolderResult);
