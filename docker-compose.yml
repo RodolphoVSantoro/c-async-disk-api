@@ -32,7 +32,6 @@ services:
       - api2
     ports:
       - "9999:9999"
-    network_mode: host
     deploy:
       resources:
         limits:

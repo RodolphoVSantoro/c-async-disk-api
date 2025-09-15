@@ -1,4 +1,4 @@
-FROM ubuntu:23.10 as builder
+FROM ubuntu:latest as builder
 RUN apt-get update && apt-get install -y gcc build-essential
 
 COPY ./src /app/src
@@ -10,7 +10,7 @@ RUN make release
 
 RUN make compResetDb
 
-FROM ubuntu:23.10 as final
+FROM ubuntu:latest as final
 
 COPY --from=builder /app/rinha-backend-2024 /app/rinha-backend-2024
 COPY --from=builder /app/resetDb /app/resetDb
