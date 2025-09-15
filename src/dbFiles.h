@@ -92,7 +92,7 @@ int initDb() {
         user.id = id + 1;
         user.limit = userInitialLimits[id];
         int writeResult = writeUser(&user);
-        raiseIfError(writeResult);
+        raiseIfNotSuccess(writeResult, "Failed to write user to file");
     }
 
     return SUCCESS;
@@ -106,7 +106,7 @@ int writeUser(User* user) {
     int userFileDescriptor = fileno(userFile);
     
     int lockResult = flock(userFileDescriptor, LOCK_EX);
-    raiseIfError(lockResult);
+    raiseIfNotSuccess(lockResult, "Failed to lock user file");
     
     int userCount = 1;
     int writeResult = fwrite(user, sizeof(User), userCount, userFile);
@@ -115,13 +115,13 @@ int writeUser(User* user) {
     }
     
     int flushResult = fflush(userFile);
-    raiseIfError(flushResult);
+    raiseIfNotSuccess(flushResult, "Failed to flush user file");
     
     int release = flock(userFileDescriptor, LOCK_UN);
-    raiseIfError(release);
+    raiseIfNotSuccess(release, "Failed to unlock user file");
     
     int closeResult = fclose(userFile);
-    raiseIfError(closeResult);
+    raiseIfNotSuccess(closeResult, "Failed to close user file");
     return SUCCESS;
 }
 
@@ -133,18 +133,19 @@ int readUser(User* user, int id) {
     int userFileDescriptor = fileno(userFile);
     
     int lockResult = flock(userFileDescriptor, LOCK_SH);
+    raiseIfNotSuccess(lockResult, "Failed to lock user file");
+
     int userCount = 1;
     int readResult = fread(user, sizeof(User), userCount, userFile);
     int release = flock(userFileDescriptor, LOCK_UN);
     int closeResult = fclose(userFile);
     
     if(readResult != userCount) {
+        printf("Failed to read user %d from file\n", id);
         return UNSUCCESSFUL_READ_ERROR;
     }
-    raiseIfError(lockResult);
-    raiseIfError(readResult);
-    raiseIfError(release);
-    raiseIfError(closeResult);
+    raiseIfNotSuccess(release, "Failed to unlock user file");
+    raiseIfNotSuccess(closeResult, "Failed to close user file");
 
     return SUCCESS;
 }
@@ -160,48 +161,51 @@ int updateUserWithTransaction(int id, Transaction* transaction, User* user) {
     raiseIfFileNotFound(userFile);
     int userFileDescriptor = fileno(userFile);
     int lockResult = flock(userFileDescriptor, LOCK_EX);
-    raiseIfError(lockResult);
+    raiseIfNotSuccess(lockResult, "Failed to lock user file");
+    log("Locked user file %s\n", fname);
 
     int userCount = 1;
     int readResult = fread(user, sizeof(User), userCount, userFile);
+    log("Read user file %s\n", fname);
     
     int transactionResult = addTransaction(user, transaction);
+    log("Added transaction\n");
     
     // Go back to the beginning of the file, because fread moved the cursor
     int seekResult = fseek(userFile, 0, SEEK_SET);
+    log("Seek set\n");
     int writeResult = fwrite(user, sizeof(User), userCount, userFile);
+    log("Wrote user file %s\n", fname);
     int flushResult = fflush(userFile);
+    log("Flushed user file %s\n", fname);
     int release = flock(userFileDescriptor, LOCK_UN);
+    log("Unlocked user file %s\n", fname);
     int closeResult = fclose(userFile);
+    log("Closed user file %s\n", fname);
 
     if(readResult != userCount) {
         return UNSUCCESSFUL_READ_ERROR;
     }
-    raiseIfError(transactionResult);
-    raiseIfError(seekResult);
+    raiseIfNotSuccess(transactionResult, "Failed to add transaction");
+    raiseIfNotSuccess(seekResult, "Failed to seek user file");
     if(writeResult != userCount) {
         return UNSUCCESSFUL_READ_ERROR;
     }
-    raiseIfError(flushResult);
-    raiseIfError(release);
-    raiseIfError(closeResult);
+    raiseIfNotSuccess(flushResult, "Failed to flush user file");
+    raiseIfNotSuccess(release, "Failed to unlock user file");
+    raiseIfNotSuccess(closeResult, "Failed to close user file");
     
     return SUCCESS;
 }
 
 int addTransaction(User* user, Transaction* transaction) {
     int resultSaldo = addSaldo(user, transaction);
-    raiseIfError(resultSaldo);
-
-    if (user->nTransactions == 10) {
-        user->transactions[user->oldestTransaction] = *transaction;
-        moveRightInTransactions(user->oldestTransaction);
-        return SUCCESS;
+    raiseIfNotSuccess(resultSaldo, "Failed to add saldo");
+    user->transactions[user->oldestTransaction] = *transaction;
+    moveRightInTransactions(user->oldestTransaction);
+    if(user->nTransactions < MAX_TRANSACTIONS){
+        user->nTransactions++;
     }
-
-    // TODO: check if i need nTransactions at all
-    user->transactions[user->nTransactions] = *transaction;
-    user->nTransactions++;
     return SUCCESS;
 }
 

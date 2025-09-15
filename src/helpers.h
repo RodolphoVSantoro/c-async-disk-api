@@ -20,13 +20,20 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <sys/epoll.h>
 
 // Logging
 // Debug flags
 // Comment out to enable logging
+#define LOG_DATE_TIME_SIZE 32
+static char LOG_DATE_TIME[LOG_DATE_TIME_SIZE];
+
 #define LOGGING 1
 #ifdef LOGGING
-#define log(message, ...) printf(message, ##__VA_ARGS__)
+#define log(message, ...) \
+    getCurrentTimeStr(LOG_DATE_TIME, sizeof(LOG_DATE_TIME)); \
+    printf("%s: ", LOG_DATE_TIME); \
+    printf(message, ##__VA_ARGS__);
 #else
 #define log(message, ...) (void)0
 #endif
@@ -49,16 +56,23 @@
     }
 
 // Return error if the result is an error
-#define raiseIfError(result) \
+#define raiseIfError(result, message) \
+    if (result == ERROR) {   \
+        log("{ Error occurred: %s }\n", message);   \
+        return result;        \
+    }
+
+// Return error if the result is not success
+#define raiseIfNotSuccess(result, message) \
     if (result != SUCCESS) {   \
-        log("Error occurred code %d", result);   \
+        log("{ Error occurred code %d: %s }\n", result, message);   \
         return result;        \
     }
 
 // Return FILE_NOT_FOUND if the file pointer is NULL
 #define raiseIfFileNotFound(filePointer) \
     if (filePointer == NULL) {           \
-        log("File not found");           \
+        log("{ File not found }");           \
         return FILE_NOT_FOUND;           \
     }
 

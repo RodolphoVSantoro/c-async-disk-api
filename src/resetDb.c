@@ -3,6 +3,6 @@
 int main() {
     system("mkdir -p data");
     int resetDbResult = initDb();
-    raiseIfError(resetDbResult);
+    raiseIfNotSuccess(resetDbResult, "Failed to reset database");
     return SUCCESS;
 }

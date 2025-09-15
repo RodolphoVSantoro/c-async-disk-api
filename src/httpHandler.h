@@ -11,7 +11,7 @@
 // server port
 // #define SERVER_PORT 9999
 // max connections waiting to be accepted
-#define SERVER_BACKLOG 1000
+#define SERVER_BACKLOG 2048
 // 8KB
 #define SOCKET_READ_SIZE 8 * 1024
 // 16KB
@@ -20,6 +20,9 @@
 #define RESPONSE_BODY_SIZE 8 * 1024
 // 256B
 #define RESPONSE_BODY_TRANSACTIONS_SIZE 256
+
+// EPOLL config
+#define MAX_EVENTS 32
 
 // socket send default flag
 #define SEND_DEFAULT 0
@@ -71,6 +74,7 @@ int setupServer(short port, int backlog) {
     check(setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes)), "Failed to set socket options");
 
     check(bind(serverSocket, (SA*)&serverAddress, sizeof(serverAddress)), "Failed to bind socket");
+    check(fcntl(serverSocket, F_SETFL, fcntl(serverSocket, F_GETFL, 0) | O_NONBLOCK), "Failed to set server socket to non-blocking");
     check(listen(serverSocket, backlog), "Failed to listen on socket");
 
     return serverSocket;
@@ -80,11 +84,11 @@ int handleRequest(char* request, int requestSize, int clientSocket) {
     char reqTime[DATE_SIZE];
     getCurrentTimeStr(reqTime, sizeof(reqTime));
 
-    log("{ %s - Received:", reqTime);
-    log(LOG_SEPARATOR);
-    log("[%s]", request);
-    log(LOG_SEPARATOR);
-    log("(%d bytes read) }\n", requestSize);
+    // log("{ %s - Received:", reqTime);
+    // log(LOG_SEPARATOR);
+    // log("[%s]", request);
+    // log(LOG_SEPARATOR);
+    // log("(%d bytes read) }\n", requestSize);
 
     // "GET" alone has 3 bytes, so we need at least 4 bytes to consume a request
     if (requestSize < 4) {
@@ -126,7 +130,7 @@ int handleGetRequest(int clientSocket, char* request, int requestSize) {
     char response[RESPONSE_SIZE];
     serializeGetResponse(&user, response);
 
-    log("[ %s ]\n", response);
+    // log("[ %s ]\n", response);
     return RESPOND(clientSocket, response);
 }
 
@@ -222,7 +226,7 @@ int handlePostRequest(int clientSocket, char* request, int requestSize) {
     char response[RESPONSE_SIZE];
     serializePostResponse(&user, response);
 
-    log("[ %s ]\n", response);
+    // log("[ %s ]\n", response);
     // send response
     return RESPOND(clientSocket, response);
 }
@@ -266,7 +270,7 @@ int getTransactionFromBody(char* request, Transaction* transaction) {
     errIfNull(valor);
     valor = &valor[1];
     int getValorResult = getValorFromBody(valor, &transaction->valor);
-    raiseIfError(getValorResult);
+    raiseIfNotSuccess(getValorResult, "Failed to get valor from body");
 
     // Find tipo key in body
     char* tipo = strstr(body, "tipo");
