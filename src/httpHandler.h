@@ -22,7 +22,7 @@
 #define RESPONSE_BODY_TRANSACTIONS_SIZE 256
 
 // EPOLL config
-#define MAX_EVENTS 32
+#define MAX_EVENTS 2048
 
 // socket send default flag
 #define SEND_DEFAULT 0
@@ -131,7 +131,12 @@ int handleGetRequest(int clientSocket, char* request, int requestSize) {
     serializeGetResponse(&user, response);
 
     // log("[ %s ]\n", response);
-    return RESPOND(clientSocket, response);
+    size_t responseSize = RESPOND(clientSocket, response);
+    if(responseSize != strlen(response)) {
+        log("[ Error sending response ]\n");
+        return ERROR;
+    }
+    return responseSize;
 }
 
 int getIdFromGETRequest(const char* request, int requestLength) {

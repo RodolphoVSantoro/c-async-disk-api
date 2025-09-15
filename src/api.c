@@ -37,38 +37,41 @@ int main(int argc, char* argv[]) {
 
     epollFileDescriptor = epoll_create(1);
     raiseIfError(epollFileDescriptor, "Failed to create epoll file descriptor");
-    struct epoll_event event;
+    struct epoll_event server_event;
     
-    event.events = EPOLLIN | EPOLLOUT | EPOLLET;
-	event.data.fd = serverSocket;
-    int addServerPollResult = epoll_ctl(epollFileDescriptor, EPOLL_CTL_ADD, serverSocket, &event);
+    server_event.events = EPOLLIN | EPOLLOUT | EPOLLET;
+	server_event.data.fd = serverSocket;
+    int addServerPollResult = epoll_ctl(epollFileDescriptor, EPOLL_CTL_ADD, serverSocket, &server_event);
     raiseIfError(addServerPollResult, "Failed to add server socket to epoll");
 
     struct epoll_event events[MAX_EVENTS];
 
     while (true) {
-        // int INF_TIMEOUT = -1;
-        int event_count = epoll_wait(epollFileDescriptor, events, MAX_EVENTS, 1000);
-        log("{ %d events }\n", event_count);
+        int INF_TIMEOUT = -1;
+        log("{ Waiting for events... }\n");
+        int event_count = epoll_wait(epollFileDescriptor, events, MAX_EVENTS, INF_TIMEOUT);
+        if(event_count != 0){
+            log("{ %d events }\n", event_count);
+        } else{
+            log("{ epoll_wait timed out }\n");
+        }
         for(int i = 0; i < event_count; i++){
+            log("{ Handling event %d }\n", i);
             int socket = events[i].data.fd;
             if(socket == serverSocket){
                 struct sockaddr_in clientAddress;
                 socklen_t clientAddressSize = sizeof(clientAddress);
                 int clientSocket = accept(serverSocket, (SA*)&clientAddress, &clientAddressSize);
                 raiseIfError(clientSocket, "Failed to accept connection");
-                int setNonBlockingReturn = fcntl(clientSocket, F_SETFL, fcntl(clientSocket, F_GETFL, 0) | O_NONBLOCK);
-                log("{ Set non blocking return %d }\n", setNonBlockingReturn);
-                raiseIfError(setNonBlockingReturn, "Failed to set client socket to non-blocking");
-                
-                event.events = EPOLLIN | EPOLLET | EPOLLRDHUP | EPOLLHUP;
-                event.data.fd = clientSocket;
-                int addClientResult = epoll_ctl(epollFileDescriptor, EPOLL_CTL_ADD, clientSocket, &event);
+
+                struct epoll_event client_event;
+                client_event.events = EPOLLIN | EPOLLET;
+                client_event.data.fd = clientSocket;
+                int addClientResult = epoll_ctl(epollFileDescriptor, EPOLL_CTL_ADD, clientSocket, &client_event);
                 raiseIfError(addClientResult, "Failed to add client socket to epoll");
                 log("{ Accepted connection %d }\n", clientSocket);
-                continue;
             }
-            if(events[i].events & EPOLLIN){
+            else if(events[i].events & EPOLLIN){
                 char request[SOCKET_READ_SIZE];
                 int bytesRead = recv(socket, request, sizeof(request), SEND_DEFAULT);
 
@@ -81,15 +84,10 @@ int main(int argc, char* argv[]) {
                         log("{ Request handled }\n");
                     }
                 }
-                int removeClientResult = epoll_ctl(epollFileDescriptor, EPOLL_CTL_DEL, socket, NULL);
-                raiseIfError(removeClientResult, "Failed to remove client socket from epoll");
-                close(socket);
+
+                int closeResult = close(socket);
+                raiseIfError(closeResult, "Failed to close client socket");
             }
-            if (events[i].events & (EPOLLRDHUP | EPOLLHUP)) {
-				printf("{ connection closed }\n");
-				epoll_ctl(epollFileDescriptor, EPOLL_CTL_DEL, socket, NULL);
-				close(socket);
-			}
         }
     }
 

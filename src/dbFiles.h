@@ -160,9 +160,10 @@ int updateUserWithTransaction(int id, Transaction* transaction, User* user) {
     FILE* userFile = fopen(fname, READ_WRITE_BINARY);
     raiseIfFileNotFound(userFile);
     int userFileDescriptor = fileno(userFile);
+    log("Locking for transaction %s\n", transaction->descricao);
     int lockResult = flock(userFileDescriptor, LOCK_EX);
+    log("Locked for transaction %s\n", transaction->descricao);
     raiseIfNotSuccess(lockResult, "Failed to lock user file");
-    log("Locked user file %s\n", fname);
 
     int userCount = 1;
     int readResult = fread(user, sizeof(User), userCount, userFile);
@@ -177,9 +178,7 @@ int updateUserWithTransaction(int id, Transaction* transaction, User* user) {
     int writeResult = fwrite(user, sizeof(User), userCount, userFile);
     log("Wrote user file %s\n", fname);
     int flushResult = fflush(userFile);
-    log("Flushed user file %s\n", fname);
-    int release = flock(userFileDescriptor, LOCK_UN);
-    log("Unlocked user file %s\n", fname);
+    int releaseResult = flock(userFileDescriptor, LOCK_UN);
     int closeResult = fclose(userFile);
     log("Closed user file %s\n", fname);
 
@@ -192,7 +191,7 @@ int updateUserWithTransaction(int id, Transaction* transaction, User* user) {
         return UNSUCCESSFUL_READ_ERROR;
     }
     raiseIfNotSuccess(flushResult, "Failed to flush user file");
-    raiseIfNotSuccess(release, "Failed to unlock user file");
+    raiseIfNotSuccess(releaseResult, "Failed to unlock user file");
     raiseIfNotSuccess(closeResult, "Failed to close user file");
     
     return SUCCESS;
@@ -210,7 +209,6 @@ int addTransaction(User* user, Transaction* transaction) {
 }
 
 int addSaldo(User* user, Transaction* transaction) {
-    log("Adding saldo %d of tipo %c to user %d\n", transaction->valor, transaction->tipo, user->id);
     if (transaction->tipo == 'd') {
         int newTotal = user->total - transaction->valor;
         if (-1 * newTotal > user->limit) {
